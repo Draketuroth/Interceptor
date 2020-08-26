@@ -19,9 +19,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\CpuSampler.h" />
     <ClInclude Include="include\detours.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\CpuSampler.cpp" />
     <ClCompile Include="src\DirectDrawHook.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

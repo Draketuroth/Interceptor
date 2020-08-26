@@ -14,9 +14,15 @@
     <ClInclude Include="include\detours.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\CpuSampler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\DirectDrawHook.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\CpuSampler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
