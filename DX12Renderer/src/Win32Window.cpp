@@ -10,26 +10,28 @@ namespace VE
         Win32Window::Win32Window(unsigned int width, unsigned int height, std::wstring name) : 
             DXWindow(width, height, name), 
             _frameIndex(0),
+            _viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
+            _scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
             _rtvDescriptorSize(0)
         {
 
         }
 
-        void Win32Window::onInit()
+        void Win32Window::OnInit()
         {
-            loadPipeline();
-            loadAssets();
+            LoadPipeline();
+            LoadAssets();
         }
 
-        void Win32Window::onUpdate()
+        void Win32Window::OnUpdate()
         {
 
         }
 
-        void Win32Window::onRender()
+        void Win32Window::OnRender()
         {
             // Record all the commands we need to render the scene into the command list.
-            populateCommandList();
+            PopulateCommandList();
 
             // Execute the command list.
             ID3D12CommandList* ppCommandList[] = { _commandList.Get() };
@@ -38,19 +40,19 @@ namespace VE
             // Present the frame.
             ThrowIfFailed(_swapChain->Present(1, 0));
 
-            waitForPreviousFrame();
+            WaitForPreviousFrame();
         }
 
-        void Win32Window::onDestroy()
+        void Win32Window::OnDestroy()
         {
             // Ensure that the GPU is no longer referencing resources that are about to be
             // cleaned up by the destructor.
-            waitForPreviousFrame();
+            WaitForPreviousFrame();
 
             CloseHandle(_fenceEvent);
         }
 
-        void Win32Window::loadPipeline()
+        void Win32Window::LoadPipeline()
         {
             UINT dxgiFactoryFlags = 0;
 
@@ -86,7 +88,7 @@ namespace VE
             else 
             {
                 Microsoft::WRL::ComPtr<IDXGIAdapter1> hardwareAdapter;
-                getHardwareAdapter(factory.Get(), &hardwareAdapter);
+                GetHardwareAdapter(factory.Get(), &hardwareAdapter);
 
                 ThrowIfFailed(D3D12CreateDevice(
                     hardwareAdapter.Get(),
@@ -116,7 +118,7 @@ namespace VE
             ThrowIfFailed(factory->CreateSwapChainForHwnd
             (
                 _commandQueue.Get(), // Swap chain needs the queue so that it can force a flush on it.
-                Win32Application::getHwnd(),
+                Win32Application::GetHwnd(),
                 &swapChainDesc,
                 nullptr,
                 nullptr,
@@ -124,7 +126,7 @@ namespace VE
             ));
 
             // This sample does not support fullscreen transitions.
-            ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::getHwnd(), DXGI_MWA_NO_ALT_ENTER));
+            ThrowIfFailed(factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
 
             ThrowIfFailed(swapChain.As(&_swapChain));
             _frameIndex = _swapChain->GetCurrentBackBufferIndex();
@@ -157,7 +159,7 @@ namespace VE
             ThrowIfFailed(_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&_commandAllocator)));
         }
 
-        void Win32Window::loadAssets()
+        void Win32Window::LoadAssets()
         {
             // Create the command list.
             ThrowIfFailed(_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, _commandAllocator.Get(), nullptr, IID_PPV_ARGS(&_commandList)));
@@ -180,7 +182,7 @@ namespace VE
             }
         }
 
-        void Win32Window::populateCommandList()
+        void Win32Window::PopulateCommandList()
         {
             // Command list allocators can only be reset when the associated
             // command lists have finished execution on the GPU; apps should
@@ -207,7 +209,7 @@ namespace VE
             ThrowIfFailed(_commandList->Close());
         }
 
-        void Win32Window::waitForPreviousFrame()
+        void Win32Window::WaitForPreviousFrame()
         {
             // Signal and increment the fence value.
             const uint64_t fence = _fenceValue;

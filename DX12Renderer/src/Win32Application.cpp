@@ -14,12 +14,12 @@ namespace VE
 {
     namespace Platform
     {
-        int Win32Application::run(DXWindow* pSample, HINSTANCE hInstance, int nCmdShow)
+        int Win32Application::Run(DXWindow* pSample, HINSTANCE hInstance, int nCmdShow)
         {
             // Parse the command line parameters.
             int argc;
             LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-            pSample->parseCommandLineArgs(argv, argc);
+            pSample->ParseCommandLineArgs(argv, argc);
             LocalFree(argv);
 
             // Initialize the window class.
@@ -32,13 +32,13 @@ namespace VE
             windowClass.lpszClassName = L"DirectX12 Renderer";
             RegisterClassEx(&windowClass);
 
-            RECT windowRect = { 0, 0, static_cast<LONG>(pSample->getWidth()), static_cast<LONG>(pSample->getHeight()) };
+            RECT windowRect = { 0, 0, static_cast<LONG>(pSample->GetWidth()), static_cast<LONG>(pSample->GetHeight()) };
             AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
 
             // Crate the window and store a handle to it.
             _hwnd = CreateWindow(
                 windowClass.lpszClassName,
-                pSample->getTitle().c_str(),
+                pSample->GetTitle().c_str(),
                 WS_OVERLAPPEDWINDOW,
                 CW_USEDEFAULT,
                 CW_USEDEFAULT,
@@ -50,7 +50,7 @@ namespace VE
                 pSample);
 
             // Initialize the window. OnInit is defined in each child-implementation of DXWindow.
-            pSample->onInit();
+            pSample->OnInit();
 
             ShowWindow(_hwnd, nCmdShow);
 
@@ -66,7 +66,7 @@ namespace VE
                 }
             }
 
-            pSample->onDestroy();
+            pSample->OnDestroy();
 
             // Return this part of the WM_QUIT message to Windows.
             return static_cast<char>(msg.wParam);
@@ -88,22 +88,22 @@ namespace VE
             case WM_KEYDOWN:
                 if (pSample) 
                 {
-                    pSample->onKeyDown(static_cast<uint8_t>(wParam));
+                    pSample->OnKeyDown(static_cast<uint8_t>(wParam));
                 }
                 return 0;
             
             case WM_KEYUP:
                 if (pSample) 
                 {
-                    pSample->onKeyUp(static_cast<uint8_t>(wParam));
+                    pSample->OnKeyUp(static_cast<uint8_t>(wParam));
                 }
                 return 0;
            
             case WM_PAINT:
                 if (pSample) 
                 {
-                    pSample->onUpdate();
-                    pSample->onRender();
+                    pSample->OnUpdate();
+                    pSample->OnRender();
                 }
                 return 0;
 

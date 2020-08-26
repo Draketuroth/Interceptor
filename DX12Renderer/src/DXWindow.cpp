@@ -22,7 +22,7 @@ namespace VE
         {
 
         }
-        void DXWindow::parseCommandLineArgs(wchar_t* argv[], int argc)
+        void DXWindow::ParseCommandLineArgs(wchar_t* argv[], int argc)
         {
             for (int i = 1; i < argc; ++i) 
             {
@@ -34,13 +34,13 @@ namespace VE
                 }
             }
         }
-        std::wstring DXWindow::getAssetFullPath(const wchar_t* assetName)
+        std::wstring DXWindow::GetAssetFullPath(const wchar_t* assetName)
         {
             return std::wstring();
         }
 
         _Use_decl_annotations_
-        void DXWindow::getHardwareAdapter(
+        void DXWindow::GetHardwareAdapter(
             IDXGIFactory1* pFactory, 
             IDXGIAdapter1** pAdapter, 
             bool requestHighPerformanceAdapter)
@@ -99,7 +99,7 @@ namespace VE
                 }
             }
         }
-        void DXWindow::setCustomWindowText(const wchar_t* text)
+        void DXWindow::SetCustomWindowText(const wchar_t* text)
         {
             std::wstring windowText = _title.empty() ? text : _title + L": " + text;
         }

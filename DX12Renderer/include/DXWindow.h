@@ -14,30 +14,30 @@ namespace VE
             DXWindow(unsigned int width, unsigned int height, std::wstring name);
             virtual ~DXWindow();
 
-            virtual void onInit() = 0;
-            virtual void onUpdate() = 0;
-            virtual void onRender() = 0;
-            virtual void onDestroy() = 0;
+            virtual void OnInit() = 0;
+            virtual void OnUpdate() = 0;
+            virtual void OnRender() = 0;
+            virtual void OnDestroy() = 0;
 
-            virtual void onKeyDown(uint8_t key) {};
-            virtual void onKeyUp(uint8_t key) {};
+            virtual void OnKeyDown(uint8_t key) {};
+            virtual void OnKeyUp(uint8_t key) {};
 
-            unsigned int getWidth() const { return _width; }
-            unsigned int getHeight() const { return _height; }
-            const std::wstring getTitle() const { return _title.c_str(); }
+            unsigned int GetWidth() const { return _width; }
+            unsigned int GetHeight() const { return _height; }
+            const std::wstring GetTitle() const { return _title.c_str(); }
 
-            void parseCommandLineArgs(wchar_t* argv[], int argc);
+            void ParseCommandLineArgs(wchar_t* argv[], int argc);
 
         protected:
-            std::wstring getAssetFullPath(const wchar_t* assetName);
+            std::wstring GetAssetFullPath(const wchar_t* assetName);
 
             _Use_decl_annotations_
-            void getHardwareAdapter(
+            void GetHardwareAdapter(
                 _In_ IDXGIFactory1* pFactory,
                 _Outptr_result_maybenull_ IDXGIAdapter1** pAdapter,
                 bool requestHighPerformanceAdapter = false);
             
-            void setCustomWindowText(const wchar_t* text);
+            void SetCustomWindowText(const wchar_t* text);
 
             unsigned int _width;
             unsigned int _height;

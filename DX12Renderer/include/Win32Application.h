@@ -13,8 +13,8 @@ namespace VE
         class Win32Application 
         {
         public :
-            static int run(DXWindow* pSample, HINSTANCE hInstance, int nCmdShow);
-            static HWND getHwnd() { return _hwnd; }
+            static int Run(DXWindow* pSample, HINSTANCE hInstance, int nCmdShow);
+            static HWND GetHwnd() { return _hwnd; }
 
         protected:
             static LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
