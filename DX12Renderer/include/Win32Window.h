@@ -35,6 +35,7 @@ namespace VE
             Microsoft::WRL::ComPtr<ID3D12Resource> _renderTargets[_frameCount];
             Microsoft::WRL::ComPtr<ID3D12CommandAllocator> _commandAllocator;
             Microsoft::WRL::ComPtr<ID3D12CommandQueue> _commandQueue;
+            Microsoft::WRL::ComPtr<ID3D12RootSignature> _rootSignature;
             Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
             Microsoft::WRL::ComPtr<ID3D12PipelineState> _pipelineState;
             Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> _commandList;

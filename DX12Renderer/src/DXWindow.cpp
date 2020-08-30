@@ -36,7 +36,7 @@ namespace VE
         }
         std::wstring DXWindow::GetAssetFullPath(const wchar_t* assetName)
         {
-            return std::wstring();
+            return _assetsPath + assetName;
         }
 
         _Use_decl_annotations_
