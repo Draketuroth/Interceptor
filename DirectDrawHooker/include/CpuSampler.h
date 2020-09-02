@@ -19,9 +19,9 @@ namespace VE
                 double GetProcessUsage();
                 void SetProcessHandle(HANDLE handle);
                 void SetCPUSamplingFrequency(unsigned int ms);
+                bool EnoughTimePassed();
             private:
                 ULONGLONG SubtractTimes(const FILETIME& ftA, const FILETIME& ftB);
-                bool EnoughTimePassed();
                 inline bool isFirstRun() const { return (_dwLastRun == 0); }
 
                 // System total times.

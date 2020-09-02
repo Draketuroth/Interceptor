@@ -28,12 +28,6 @@ namespace VE
 
                 if (::InterlockedIncrement(&_lRunCount) == 1) 
                 {
-                    if (!EnoughTimePassed()) 
-                    {
-                        ::InterlockedDecrement(&_lRunCount);
-                        return cpuCopy;
-                    }
-
                     FILETIME ftSysIdle, ftSysKernel, ftSysUser;
                     FILETIME ftProcCreation, ftProcExit, ftProcKernel, ftProcUser;
 
@@ -95,6 +89,16 @@ namespace VE
                 _minElapsedMS = ms;
             }
 
+            bool CpuSampler::EnoughTimePassed()
+            {
+            #if _WIN64 
+                ULONGLONG dwCurrentTickCount = GetTickCount64();
+            #else
+                ULONGLONG dwCurrentTickCount = GetTickCount();
+            #endif
+                return (dwCurrentTickCount - _dwLastRun) > _minElapsedMS;
+            }
+
             ULONGLONG CpuSampler::SubtractTimes(const FILETIME& ftA, const FILETIME& ftB)
             {
                 LARGE_INTEGER a, b;
@@ -105,16 +109,6 @@ namespace VE
                 b.HighPart = ftB.dwHighDateTime;
 
                 return a.QuadPart - b.QuadPart;
-            }
-
-            bool CpuSampler::EnoughTimePassed()
-            {
-            #if _WIN64 
-                ULONGLONG dwCurrentTickCount = GetTickCount64();
-            #else
-                ULONGLONG dwCurrentTickCount = GetTickCount();
-            #endif
-                return (dwCurrentTickCount - _dwLastRun) > _minElapsedMS;
             }
         }
     }

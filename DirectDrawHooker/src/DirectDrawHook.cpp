@@ -219,8 +219,11 @@ int main()
 
     while (IsProcessRunning(pid)) 
     {
-        double cpuUsage = CpuSampler.GetProcessUsage();
-        outputFile << std::to_string(cpuUsage) << "\n";
+        if (CpuSampler.EnoughTimePassed()) 
+        {
+            double cpuUsage = CpuSampler.GetProcessUsage();
+            outputFile << std::to_string(cpuUsage) << "\n";
+        }
     }
 
     outputFile.close();
