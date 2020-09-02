@@ -215,12 +215,12 @@ int main()
         std::cout << "Successfully loaded ddraw.dll handle!" << std::endl;
     }
 
+    CpuSampler.SetCPUSamplingFrequency(100);
+
     while (IsProcessRunning(pid)) 
     {
-        short cpuUsage = CpuSampler.GetProcessUsage();
-        // printf("Thread id %d: %d%% cpu usage\n", ::GetCurrentThreadId(), cpuUsage);
+        double cpuUsage = CpuSampler.GetProcessUsage();
         outputFile << std::to_string(cpuUsage) << "\n";
-        // Sleep(1000);
     }
 
     outputFile.close();

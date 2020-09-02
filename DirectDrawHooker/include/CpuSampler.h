@@ -16,8 +16,9 @@ namespace VE
             public:
                 CpuSampler(void);
 
-                short GetProcessUsage();
+                double GetProcessUsage();
                 void SetProcessHandle(HANDLE handle);
+                void SetCPUSamplingFrequency(unsigned int ms);
             private:
                 ULONGLONG SubtractTimes(const FILETIME& ftA, const FILETIME& ftB);
                 bool EnoughTimePassed();
@@ -34,7 +35,8 @@ namespace VE
                 // Process handle.
                 HANDLE _processHandle;
 
-                short _cpuUsage;
+                double _cpuUsage;
+                unsigned int  _minElapsedMS;
                 ULONGLONG _dwLastRun;
 
                 volatile LONG _lRunCount;

@@ -9,6 +9,7 @@ namespace VE
         {
             CpuSampler::CpuSampler(void) :
             _cpuUsage(-1),
+            _minElapsedMS(100),
             _dwLastRun(0),
             _lRunCount(0)
             {
@@ -19,11 +20,11 @@ namespace VE
                 ZeroMemory(&_ftPrevProcUser, sizeof(FILETIME));
             }
 
-            short CpuSampler::GetProcessUsage()
+            double CpuSampler::GetProcessUsage()
             {
                 // Create a copy to protect against race conditions in setting
                 // the member variable.
-                short cpuCopy = _cpuUsage;
+                double cpuCopy = _cpuUsage;
 
                 if (::InterlockedIncrement(&_lRunCount) == 1) 
                 {
@@ -40,7 +41,7 @@ namespace VE
                         !GetProcessTimes(_processHandle, &ftProcCreation, &ftProcExit, &ftProcKernel, &ftProcUser))
                     {
                         ::InterlockedDecrement(&_lRunCount);
-                        return cpuCopy;
+                        return -1.0;
                     }
 
                     if (!isFirstRun()) 
@@ -61,7 +62,7 @@ namespace VE
 
                         if (totalSys > 0) 
                         {
-                            _cpuUsage = static_cast<short>((100.0 * totalProc) / totalSys);
+                            _cpuUsage = static_cast<double>((100.0 * totalProc) / totalSys);
                         }
                     }
 
@@ -70,7 +71,11 @@ namespace VE
                     _ftPrevProcKernel = ftProcKernel;
                     _ftPrevProcUser = ftProcUser;
 
-                    _dwLastRun = GetTickCount64();
+                    #if _WIN64 
+                        _dwLastRun = GetTickCount64();
+                    #else
+                        _dwLastRun = GetTickCount();
+                    #endif
 
                     cpuCopy = _cpuUsage;
                 }
@@ -83,6 +88,11 @@ namespace VE
             void CpuSampler::SetProcessHandle(HANDLE handle)
             {
                 _processHandle = handle;
+            }
+
+            void CpuSampler::SetCPUSamplingFrequency(unsigned int ms)
+            {
+                _minElapsedMS = ms;
             }
 
             ULONGLONG CpuSampler::SubtractTimes(const FILETIME& ftA, const FILETIME& ftB)
@@ -99,10 +109,12 @@ namespace VE
 
             bool CpuSampler::EnoughTimePassed()
             {
-                const int minElapsedMS = 250;
-
+            #if _WIN64 
                 ULONGLONG dwCurrentTickCount = GetTickCount64();
-                return (dwCurrentTickCount - _dwLastRun) > minElapsedMS;
+            #else
+                ULONGLONG dwCurrentTickCount = GetTickCount();
+            #endif
+                return (dwCurrentTickCount - _dwLastRun) > _minElapsedMS;
             }
         }
     }
