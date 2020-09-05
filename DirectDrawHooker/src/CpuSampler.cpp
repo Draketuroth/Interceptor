@@ -7,11 +7,29 @@ namespace VE
     {
         namespace Util 
         {
+            double GetQueryPerformanceMs() {
+                static LARGE_INTEGER queryFrequency;
+                static BOOL supportsQueryFrequency = QueryPerformanceFrequency(&queryFrequency);
+
+                // Check if installed hardware supports high-resolution counter.
+                if (supportsQueryFrequency) {
+                    LARGE_INTEGER queryCounter;
+                    QueryPerformanceCounter(&queryCounter);
+                    return (1000.0 * queryCounter.QuadPart) / queryFrequency.QuadPart;
+                }
+                else {
+                #if _WIN64 
+                    return static_cast<double>(GetTickCount64());
+                #else
+                    return static_cast<double>(GetTickCount());
+                #endif
+                }
+            }
+
             CpuSampler::CpuSampler(void) :
-            _cpuUsage(-1),
             _minElapsedMS(100),
-            _dwLastRun(0),
-            _lRunCount(0)
+            _previousTimeStamp(0),
+            _runCounter(0)
             {
                 ZeroMemory(&_ftPrevSysKernel, sizeof(FILETIME));
                 ZeroMemory(&_ftPrevSysUser, sizeof(FILETIME));
@@ -20,22 +38,32 @@ namespace VE
                 ZeroMemory(&_ftPrevProcUser, sizeof(FILETIME));
             }
 
-            double CpuSampler::GetProcessUsage()
+            bool CpuSampler::GetProcessUsage(double& cpuOutput)
             {
-                // Create a copy to protect against race conditions in setting
-                // the member variable.
-                double cpuCopy = _cpuUsage;
+                // Create a copy to protect against race conditions.
+                double percentage = 0.0;
 
-                if (::InterlockedIncrement(&_lRunCount) == 1) 
+                if (::InterlockedIncrement(&_runCounter) == 1) 
                 {
+                    double currentTimestamp = GetQueryPerformanceMs();
+
+                    // Check if enough time has passed. 
+                    if ( !((currentTimestamp - _previousTimeStamp) > _minElapsedMS) ) 
+                    {
+                        ::InterlockedDecrement(&_runCounter);
+                        cpuOutput = -1.0;
+                        return false;
+                    }
+
                     FILETIME ftSysIdle, ftSysKernel, ftSysUser;
                     FILETIME ftProcCreation, ftProcExit, ftProcKernel, ftProcUser;
 
                     if (!GetSystemTimes(&ftSysIdle, &ftSysKernel, &ftSysUser) ||
                         !GetProcessTimes(_processHandle, &ftProcCreation, &ftProcExit, &ftProcKernel, &ftProcUser))
                     {
-                        ::InterlockedDecrement(&_lRunCount);
-                        return -1.0;
+                        ::InterlockedDecrement(&_runCounter);
+                        cpuOutput = -1.0;
+                        return false;
                     }
 
                     if (!isFirstRun()) 
@@ -54,10 +82,7 @@ namespace VE
                         ULONGLONG totalSys = ftSysKernelDiff + ftSysUserDiff;
                         ULONGLONG totalProc = ftProcKernelDiff + ftProcUserDiff;
 
-                        if (totalSys > 0) 
-                        {
-                            _cpuUsage = static_cast<double>((100.0 * totalProc) / totalSys);
-                        }
+                        percentage = static_cast<double>((100.0 * totalProc) / totalSys);
                     }
 
                     _ftPrevSysKernel = ftSysKernel;
@@ -65,18 +90,14 @@ namespace VE
                     _ftPrevProcKernel = ftProcKernel;
                     _ftPrevProcUser = ftProcUser;
 
-                    #if _WIN64 
-                        _dwLastRun = GetTickCount64();
-                    #else
-                        _dwLastRun = GetTickCount();
-                    #endif
-
-                    cpuCopy = _cpuUsage;
+                    _previousTimeStamp = GetQueryPerformanceMs();
                 }
 
-                ::InterlockedDecrement(&_lRunCount);
+                ::InterlockedDecrement(&_runCounter);
 
-                return cpuCopy;
+                cpuOutput = percentage;
+
+                return true;
             }
 
             void CpuSampler::SetProcessHandle(HANDLE handle)
@@ -87,16 +108,6 @@ namespace VE
             void CpuSampler::SetCPUSamplingFrequency(unsigned int ms)
             {
                 _minElapsedMS = ms;
-            }
-
-            bool CpuSampler::EnoughTimePassed()
-            {
-            #if _WIN64 
-                ULONGLONG dwCurrentTickCount = GetTickCount64();
-            #else
-                ULONGLONG dwCurrentTickCount = GetTickCount();
-            #endif
-                return (dwCurrentTickCount - _dwLastRun) > _minElapsedMS;
             }
 
             ULONGLONG CpuSampler::SubtractTimes(const FILETIME& ftA, const FILETIME& ftB)

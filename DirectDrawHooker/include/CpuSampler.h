@@ -16,13 +16,12 @@ namespace VE
             public:
                 CpuSampler(void);
 
-                double GetProcessUsage();
+                bool GetProcessUsage(double &cpuOutput);
                 void SetProcessHandle(HANDLE handle);
                 void SetCPUSamplingFrequency(unsigned int ms);
-                bool EnoughTimePassed();
             private:
                 ULONGLONG SubtractTimes(const FILETIME& ftA, const FILETIME& ftB);
-                inline bool isFirstRun() const { return (_dwLastRun == 0); }
+                inline bool isFirstRun() const { return (_previousTimeStamp == 0); }
 
                 // System total times.
                 FILETIME _ftPrevSysKernel;
@@ -35,11 +34,11 @@ namespace VE
                 // Process handle.
                 HANDLE _processHandle;
 
-                double _cpuUsage;
+                // double _cpuUsage;
                 unsigned int  _minElapsedMS;
-                ULONGLONG _dwLastRun;
+                double _previousTimeStamp;
 
-                volatile LONG _lRunCount;
+                volatile LONG _runCounter;
             };
         }
     }
