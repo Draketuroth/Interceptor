@@ -25,11 +25,41 @@
 #include <iostream>
 #include <fstream>
 
+struct ddraw_dll
+{
+    HMODULE dll;
+    FARPROC AcquireDDThreadLock;
+    FARPROC CompleteCreateSysmemSurface;
+    FARPROC D3DParseUnknownCommand;
+    FARPROC DDGetAttachedSurfaceLcl;
+    FARPROC DDInternalLock;
+    FARPROC DDInternalUnlock;
+    FARPROC DSoundHelp;
+    FARPROC DirectDrawCreate;
+    FARPROC DirectDrawCreateClipper;
+    FARPROC DirectDrawCreateEx;
+    FARPROC DirectDrawEnumerateA;
+    FARPROC DirectDrawEnumerateExA;
+    FARPROC DirectDrawEnumerateExW;
+    FARPROC DirectDrawEnumerateW;
+    FARPROC DllCanUnloadNow;
+    FARPROC DllGetClassObject;
+    FARPROC GetDDSurfaceLocal;
+    FARPROC GetOLEThunkData;
+    FARPROC GetSurfaceFromDC;
+    FARPROC RegisterSpecialCase;
+    FARPROC ReleaseDDThreadLock;
+    FARPROC SetAppCompatData;
+} ddraw;
+
+// DirectDraw Hook Definitions
+typedef HRESULT(__stdcall *DirectDrawCreateFunc)(GUID* lpGUID, LPDIRECTDRAW* lplpDD, IUnknown* pUnkOuter);
+
+DirectDrawCreateFunc fnDirectDrawCreate = NULL;
+
 HANDLE hMainThread;
 
 typedef HRESULT(__stdcall* func_Blt)(LPRECT, LPDIRECTDRAWSURFACE, LPRECT, DWORD, LPDDBLTFX);
-
-func_Blt origSurfaceBlt = NULL;
 
 VE::Core::Util::CpuSampler CpuSampler;
 
@@ -166,18 +196,19 @@ void SetupConsole()
     freopen("CONIN$", "r", stdin);
 }
 
-HRESULT __stdcall mySurfaceBlt(LPRECT lpDestRect, LPDIRECTDRAWSURFACE lpDDSrcSurface, LPRECT lpSrcRect, DWORD dwFlags, LPDDBLTFX lpDDBltFx)
+HRESULT WINAPI MyDirectDrawCreate(GUID* lpGUID, LPDIRECTDRAW* lplpDD, IUnknown* pUnkOuter)
 {
-    MessageBox(NULL, "Blt", "Bleep", MB_OK);
-    return origSurfaceBlt(lpDestRect, lpDDSrcSurface, lpSrcRect, dwFlags, lpDDBltFx);
+    std::cout << "Hej" << std::endl;
+    return fnDirectDrawCreate(lpGUID, lplpDD, pUnkOuter);
 }
 
-DWORD HookVTable(PDWORD pointer, DWORD function, int index) 
+void DetorDirectDrawCreate() 
 {
-    DWORD pFunction = (*(PDWORD*)pointer)[index];
-    (*(PDWORD*)pointer)[index] = function;
-    
-    return pFunction;
+    std::cout << "Calling fnDirectDrawCreate Detour" << std::endl;
+    DetourTransactionBegin();
+    DetourUpdateThread(GetCurrentThread());
+    DetourAttach(&(LPVOID&)fnDirectDrawCreate, (PBYTE)MyDirectDrawCreate);
+    DetourTransactionCommit();
 }
 
 int main() 
@@ -209,10 +240,40 @@ int main()
     // List the running threads for the process.
     ListProcessThreads(pid);
 
-    HMODULE ddrawModule = GetModuleHandle("ddraw.dll");
-    if (ddrawModule != NULL)
+    ddraw.dll = GetModuleHandle("ddraw.dll");
+    if (ddraw.dll != NULL)
     {
         std::cout << "Successfully loaded ddraw.dll handle!" << std::endl;
+    }
+
+    ddraw.AcquireDDThreadLock = GetProcAddress(ddraw.dll, "AcquireDDThreadLock");
+    ddraw.CompleteCreateSysmemSurface = GetProcAddress(ddraw.dll, "CompleteCreateSysmemSurface");
+    ddraw.D3DParseUnknownCommand = GetProcAddress(ddraw.dll, "D3DParseUnknownCommand");
+    ddraw.DDGetAttachedSurfaceLcl = GetProcAddress(ddraw.dll, "DDGetAttachedSurfaceLcl");
+    ddraw.DDInternalLock = GetProcAddress(ddraw.dll, "DDInternalLock");
+    ddraw.DDInternalUnlock = GetProcAddress(ddraw.dll, "DDInternalUnlock");
+    ddraw.DSoundHelp = GetProcAddress(ddraw.dll, "DSoundHelp");
+    ddraw.DirectDrawCreate = GetProcAddress(ddraw.dll, "DirectDrawCreate");
+    ddraw.DirectDrawCreateClipper = GetProcAddress(ddraw.dll, "DirectDrawCreateClipper");
+    ddraw.DirectDrawCreateEx = GetProcAddress(ddraw.dll, "DirectDrawCreateEx");
+    ddraw.DirectDrawEnumerateA = GetProcAddress(ddraw.dll, "DirectDrawEnumerateA");
+    ddraw.DirectDrawEnumerateExA = GetProcAddress(ddraw.dll, "DirectDrawEnumerateExA");
+    ddraw.DirectDrawEnumerateExW = GetProcAddress(ddraw.dll, "DirectDrawEnumerateExW");
+    ddraw.DirectDrawEnumerateW = GetProcAddress(ddraw.dll, "DirectDrawEnumerateW");
+    ddraw.DllCanUnloadNow = GetProcAddress(ddraw.dll, "DllCanUnloadNow");
+    ddraw.DllGetClassObject = GetProcAddress(ddraw.dll, "DllGetClassObject");
+    ddraw.GetDDSurfaceLocal = GetProcAddress(ddraw.dll, "GetDDSurfaceLocal");
+    ddraw.GetOLEThunkData = GetProcAddress(ddraw.dll, "GetOLEThunkData");
+    ddraw.GetSurfaceFromDC = GetProcAddress(ddraw.dll, "GetSurfaceFromDC");
+    ddraw.RegisterSpecialCase = GetProcAddress(ddraw.dll, "RegisterSpecialCase");
+    ddraw.ReleaseDDThreadLock = GetProcAddress(ddraw.dll, "ReleaseDDThreadLock");
+    ddraw.SetAppCompatData = GetProcAddress(ddraw.dll, "SetAppCompatData");
+
+    fnDirectDrawCreate = reinterpret_cast<DirectDrawCreateFunc>(ddraw.DirectDrawCreate);
+    if (fnDirectDrawCreate != NULL) 
+    {
+        std::cout << "Successfully acquired DirectDrawCreate pointer" << std::endl;
+        DetorDirectDrawCreate();
     }
 
     CpuSampler.SetCPUSamplingFrequency(100);
@@ -239,6 +300,7 @@ int main()
     {
     case DLL_PROCESS_ATTACH:
     {
+        // Sleep(10000);
         DisableThreadLibraryCalls(hModule);
         hMainThread = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)main, NULL, NULL, NULL);
         break;
