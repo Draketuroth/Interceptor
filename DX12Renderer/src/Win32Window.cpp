@@ -12,7 +12,8 @@ namespace VE
             _frameIndex(0),
             _viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)),
             _scissorRect(0, 0, static_cast<LONG>(width), static_cast<LONG>(height)),
-            _rtvDescriptorSize(0)
+            _rtvDescriptorSize(0),
+            _constantBuffer{}
         {
 
         }
@@ -25,7 +26,26 @@ namespace VE
 
         void Win32Window::OnUpdate()
         {
+            _appCounter += 0.001;
 
+            const float translationSpeed = 0.005f;
+
+            // Update the model matrix.
+            float angle = static_cast<float>(_appCounter * 90.0);
+            DirectX::XMMATRIX modelMatrix = DirectX::XMMatrixRotationY(angle);
+
+            DirectX::XMVECTOR eye = { 3.5, 0, -2.5 };
+            DirectX::XMVECTOR at = { 0, 0, 1 };
+            DirectX::XMVECTOR up = { 0, 1, 0 };
+
+            DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookToLH(eye, at, up);
+            DirectX::XMMATRIX projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(90.0f, 1.0f, 0.1, 1000.0f);
+
+            DirectX::XMStoreFloat4x4(&_constantBufferData.matrixModel, DirectX::XMMatrixTranspose(modelMatrix));
+            DirectX::XMStoreFloat4x4(&_constantBufferData.matrixView, DirectX::XMMatrixTranspose(viewMatrix));
+            DirectX::XMStoreFloat4x4(&_constantBufferData.matrixProjection, DirectX::XMMatrixTranspose(projectionMatrix));
+
+            memcpy(_pCbvDataBegin, &_constantBufferData, sizeof(_constantBufferData));
         }
 
         void Win32Window::OnRender()
@@ -141,6 +161,15 @@ namespace VE
                 ThrowIfFailed(_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&_rtvHeap)));
 
                 _rtvDescriptorSize = _device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+                // Describe and create a constant buffer view (CBV) descriptor heap.
+                // Flags indicate that this descriptor heap can be bound to the pipeline
+                // and that that descriptors contained in it can be referenced by a root table.
+                D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {};
+                cbvHeapDesc.NumDescriptors = 1;
+                cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+                cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+                ThrowIfFailed(_device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&_cbvHeap)));
             }
 
             // Create frame resources.
@@ -162,13 +191,48 @@ namespace VE
         void Win32Window::LoadAssets()
         {
             // Create an empty root signature.
+            // {
+            //     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+            //     rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+            // 
+            //     Microsoft::WRL::ComPtr<ID3DBlob> signature;
+            //     Microsoft::WRL::ComPtr<ID3DBlob> error;
+            //     ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+            //     ThrowIfFailed(_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_rootSignature)));
+            // }
+
+            // Create a root signature consisting of a descriptor table with a single CBV.
             {
-                CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-                rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+                D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+
+                // This is the highest version the sample supports. If CheckFeatureSupport succeeds, the HighestVersion returned will not be greater than this.
+                featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+
+                if (FAILED(_device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData)))) 
+                {
+                    featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+                }
+
+                CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+                CD3DX12_ROOT_PARAMETER1 rootParameters[1];
+
+                ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+                rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_VERTEX);
+
+                // Allow input layout and deny uneccessary acces to certain pipeline stages.
+                D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+                    D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+                    D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS |
+                    D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS |
+                    D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS |
+                    D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+
+                CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
+                rootSignatureDesc.Init_1_1(_countof(rootParameters), rootParameters, 0, nullptr, rootSignatureFlags);
 
                 Microsoft::WRL::ComPtr<ID3DBlob> signature;
                 Microsoft::WRL::ComPtr<ID3DBlob> error;
-                ThrowIfFailed(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+                ThrowIfFailed(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
                 ThrowIfFailed(_device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&_rootSignature)));
             }
 
@@ -252,6 +316,31 @@ namespace VE
                 _vertexBufferView.SizeInBytes = vertexBufferSize;
             }
 
+            // Create the constant buffer.
+            {
+                const UINT constantBufferSize = sizeof(TransformOffsetBuffer);
+
+                ThrowIfFailed(_device->CreateCommittedResource(
+                    &CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+                    D3D12_HEAP_FLAG_NONE,
+                    &CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize),
+                    D3D12_RESOURCE_STATE_GENERIC_READ,
+                    nullptr,
+                    IID_PPV_ARGS(&_constantBuffer)));
+
+                // Describe and create a constant buffer view.
+                D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
+                cbvDesc.BufferLocation = _constantBuffer->GetGPUVirtualAddress();
+                cbvDesc.SizeInBytes = constantBufferSize;
+                _device->CreateConstantBufferView(&cbvDesc, _cbvHeap->GetCPUDescriptorHandleForHeapStart());
+
+                // Map and initialize the constant buffer. We don't unmap this until the app closes. Keeping things
+                // mapped for the lifetime of the resource is okay.
+                CD3DX12_RANGE readRange(0, 0); // We do not intend to read form this resource on the CPU.
+                ThrowIfFailed(_constantBuffer->Map(0, &readRange, reinterpret_cast<void**>(&_pCbvDataBegin)));
+                memcpy(_pCbvDataBegin, &_constantBufferData, sizeof(_constantBufferData));
+            }
+
             // Create synchronization objects and wait until assets have been uploaded to the GPU.
             {
                 ThrowIfFailed(_device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence)));
@@ -282,6 +371,12 @@ namespace VE
 
             // Set necessary state.
             _commandList->SetGraphicsRootSignature(_rootSignature.Get());
+
+            ID3D12DescriptorHeap* ppHeads[] = { _cbvHeap.Get() };
+            _commandList->SetDescriptorHeaps(_countof(ppHeads), ppHeads);
+
+
+            _commandList->SetGraphicsRootDescriptorTable(0, _cbvHeap->GetGPUDescriptorHandleForHeapStart());
             _commandList->RSSetViewports(1, &_viewport);
             _commandList->RSSetScissorRects(1, &_scissorRect);
 
@@ -292,11 +387,11 @@ namespace VE
             _commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 
             // Record commands.
-            const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+            const float clearColor[] = { 0.1f, 0.1f, 0.1f, 1.0f };
             _commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
             _commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             _commandList->IASetVertexBuffers(0, 1, &_vertexBufferView);
-            _commandList->DrawInstanced(3, 1, 0, 0);
+            _commandList->DrawInstanced(3, 8, 0, 0);
 
             // Indicate that the back buffer will now be used to present.
             _commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(_renderTargets[_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
@@ -307,7 +402,7 @@ namespace VE
         void Win32Window::WaitForPreviousFrame()
         {
             // Signal and increment the fence value.
-            const uint64_t fence = _fenceValue;
+            const UINT64 fence = _fenceValue;
             ThrowIfFailed(_commandQueue->Signal(_fence.Get(), fence));
             _fenceValue++;
 

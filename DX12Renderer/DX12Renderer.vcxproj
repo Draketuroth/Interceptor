@@ -12,7 +12,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\DXWindow.cpp" />
+    <ClCompile Include="src\GPURingBuffer.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\RawMemoryAllocator.cpp" />
     <ClCompile Include="src\stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
@@ -20,10 +24,19 @@
     <ClCompile Include="src\Win32Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\Allocation.h" />
+    <ClInclude Include="include\BasicTypes.h" />
     <ClInclude Include="include\d3dx12.h" />
+    <ClInclude Include="include\RawMemoryAllocator.h" />
+    <ClInclude Include="include\GPURingBuffer.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="include\DXHelper.h" />
     <ClInclude Include="include\DXWindow.h" />
+    <ClInclude Include="include\IMemoryAllocator.h" />
+    <ClInclude Include="include\RingBuffer.h" />
     <ClInclude Include="include\stdafx.h" />
+    <ClInclude Include="include\STDAllocator.h" />
     <ClInclude Include="include\Win32Application.h" />
     <ClInclude Include="include\Win32Window.h" />
   </ItemGroup>

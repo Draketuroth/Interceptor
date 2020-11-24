@@ -18,6 +18,9 @@ namespace VE
             virtual void OnDestroy();
 
         private:
+
+            double _appCounter = 0.0;
+
             static const unsigned int _frameCount = 2;
 
             struct Vertex 
@@ -25,6 +28,16 @@ namespace VE
                 DirectX::XMFLOAT3 positon;
                 DirectX::XMFLOAT4 color;
             };
+
+            struct TransformOffsetBuffer 
+            {
+                DirectX::XMFLOAT4 offset;
+                DirectX::XMFLOAT4X4 matrixModel;
+                DirectX::XMFLOAT4X4 matrixView;
+                DirectX::XMFLOAT4X4 matrixProjection;
+                float padding[12]; 
+            };
+            static_assert((sizeof(TransformOffsetBuffer) % 256) == 0, "Constant buffer size must be 256-byte aligned");
 
             // Pipeline objects.
             CD3DX12_VIEWPORT _viewport;
@@ -37,6 +50,7 @@ namespace VE
             Microsoft::WRL::ComPtr<ID3D12CommandQueue> _commandQueue;
             Microsoft::WRL::ComPtr<ID3D12RootSignature> _rootSignature;
             Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> _rtvHeap;
+            Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> _cbvHeap;
             Microsoft::WRL::ComPtr<ID3D12PipelineState> _pipelineState;
             Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> _commandList;
             unsigned int _rtvDescriptorSize;
@@ -44,6 +58,9 @@ namespace VE
             // App resources.
             Microsoft::WRL::ComPtr<ID3D12Resource> _vertexBuffer;
             D3D12_VERTEX_BUFFER_VIEW _vertexBufferView;
+            Microsoft::WRL::ComPtr<ID3D12Resource> _constantBuffer;
+            TransformOffsetBuffer _constantBufferData;
+            UINT8* _pCbvDataBegin;
 
             // Synchronization objects
             unsigned int _frameIndex;
